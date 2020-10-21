@@ -1,14 +1,13 @@
 import pygame
 import math
 import random
-BLOCK_SIZE = 25
-SCREEN_SIZE = 500
-explosion = True
 
 
 class entity:
-    def __init__(self, x, y, w, h, x_vel, y_vel, health, maxHealth, shots = [], shockWaves = [],
-    shockParticles = [], pos = (0,0), type = 'player', enemy_id = None):
+    def __init__(self, x, y, w, h, x_vel, y_vel, health, maxHealth,
+    objectCoords = None, numJumps = 6, jumpSize = 50, shots = [], shockWaves = [],
+    shockParticles = [], pos = (0,0), type = 'player', img = None, weaponImg = None,
+    weaponImgFire = None, enemy_id = None):
         self.x = x
         self.y = y
         self.w = w
@@ -22,6 +21,16 @@ class entity:
         self.shockWaves = shockWaves
         self.shockParticles = shockParticles
         self.shootLoop = 10
+        self.jump = False
+        self.drop = False
+        self.damage = False
+        self.numJumps = numJumps
+        self.jumpSize = jumpSize
+        self.jumpLoop = 0
+        self.objectCoords = objectCoords
+        self.img = img
+        self.weaponImg = weaponImg
+        self.weaponImgFire = weaponImgFire
 
         self.rect = pygame.Rect(self.x, self.y, self.w, self.h)
 
@@ -30,12 +39,23 @@ class entity:
         self.dir = [dist[0] / norm, dist[1] / norm]
         self.shotLoc = [int(self.dir[0]*self.w//2 + self.x + self.w//2), int(self.dir[1]*self.w//2 + self.y + self.h//2)]
 
-    def update(self, pos):
+    def update(self, pos, win, mouseClicked, blockSize, screenSize, explosion, final_level):
         self.pos = pos
         self.upCollision = False
         self.downCollision = False
         self.rightCollision = False
         self.leftCollision = False
+
+        self.move(blockSize, screenSize, final_level)
+        self.manageJump(blockSize)
+        self.drawEntity(win)
+        #self.drawHitBoxes(win)
+        self.drawHealth(win)
+        #self.drawWeaponBox(win)
+        self.drawWeaponLocation(win, mouseClicked, True)
+        self.drawCrossHair(win)
+        self.updateShots(win, mouseClicked, blockSize, screenSize, explosion)
+
 
     def drawHitBoxes(self, win):
         self.rect = pygame.Rect(self.x, self.y, self.w, self.h)
@@ -44,18 +64,30 @@ class entity:
     def drawWeaponBox(self, win):
         pygame.draw.circle(win, (0, 0, 255), (self.x + self.w//2, self.y + self.h//2), self.w//2, 1)
 
-    def drawWeaponLocation(self, win):
+    def drawWeaponLocation(self, win, mouseClicked, show = False):
+        weaponTimer = 0
         dist = [self.pos[0] - self.x - self.w // 2, self.pos[1] - self.y - self.h//2]
         norm = math.sqrt(dist[0] ** 2.0 + dist[1] ** 2.0)
         if norm != 0:
             self.dir = [dist[0] / norm, dist[1] / norm]
         self.shotLoc = [int(self.dir[0]*self.w//2 + self.x + self.w//2), int(self.dir[1]*self.w//2 + self.y + self.h//2)]
 
-        pygame.draw.circle(
-                            win, (0, 255, 0),
-                            (int(self.shotLoc[0]), int(self.shotLoc[1])),
-                            3
-                            )
+
+        if self.weaponImg is not None:
+            if self.shootLoop > 0 and self.weaponImgFire is not None:
+                self.weaponImgFire.set_colorkey((0, 0, 0))
+                win.blit(self.weaponImgFire, (self.shotLoc[0]-8, self.shotLoc[1]-24))
+
+            else:
+                self.weaponImg.set_colorkey((0, 0, 0))
+                win.blit(self.weaponImg, (self.shotLoc[0]-8, self.shotLoc[1]-24))
+
+        if show:
+            pygame.draw.circle(
+                                win, (255, 183, 183),
+                                (int(self.shotLoc[0]), int(self.shotLoc[1])),
+                                4
+                                )
 
     def drawHealth(self, win):
         pygame.draw.rect(win, (200, 0, 0), (self.x, self.y - 10, self.w, 5))
@@ -63,9 +95,15 @@ class entity:
             pygame.draw.rect(win, (0, 200, 0), (self.x, self.y - 10, self.w*self.health/self.maxHealth, 5))
 
 
-    def drawEntity(self, win, img):
-        img = pygame.scale.transform(img, (self.w, self.h))
-        win.blit(img, self.x, self.y)
+    def drawEntity(self, win):
+        if self.img is not None:
+            self.img_flipped = pygame.transform.flip(self.img, True, False)
+
+        if self.pos[0] > self.x + self.w//2:
+            win.blit(self.img, (self.x, self.y))
+
+        else:
+            win.blit(self.img_flipped, (self.x, self.y))
 
     def checkCollision(self, objectCoords, blockSize):
 
@@ -96,7 +134,7 @@ class entity:
     def projetileCollision(self, projectiles):
         pass
 
-    def updateShots(self, screen, objectCoords, mouseClicked):
+    def updateShots(self, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion):
         if mouseClicked and self.shootLoop == 0:
             self.shots.append(projectile(self.shotLoc[0], self.shotLoc[1], self.dir[0], self.dir[1]))
             self.shootLoop = 10
@@ -105,7 +143,7 @@ class entity:
             for i in range(shot.shootVel):
                 shot.x += shot.dir_x
                 shot.y += shot.dir_y
-                for obj in objectCoords:
+                for obj in self.objectCoords:
                     rect = pygame.Rect(obj[0][0], obj[0][1], BLOCK_SIZE, BLOCK_SIZE)
                     if (shot.x + shot.radius <= 0) \
                     or (shot.x + shot.radius >= SCREEN_SIZE) \
@@ -170,49 +208,86 @@ class entity:
         for i in indices:
             del self.shockParticles[i]
 
-    def manageJump(self):
-        # Check if character is jumping and handle jump
-        if jump:
-            for _ in range(jumpSize):
-                for j in objectCoords:
-                    l, r, u, d = main_char.checkCollision(j[0], BLOCK_SIZE)
-                    if u and j[1] == 3: #Check collision by block type
-                        damage = True
+        if self.shootLoop > 0:
+            self.shootLoop -= 1
 
-                if not main_char.upCollision:
-                    main_char.y -= 1
+    def move(self, BLOCK_SIZE, SCREEN_SIZE, final_level):
+        key = pygame.key.get_pressed()
+
+        for j in self.objectCoords:
+            self.checkCollision(j[0], BLOCK_SIZE)
+
+        if key[pygame.K_SPACE] and self.downCollision:
+            self.jump = True
+
+        if key[pygame.K_d] and not self.rightCollision:
+            if final_level and self.x + self.w >= SCREEN_SIZE:
+                pass
+            else:
+                for i in range(self.x_vel):
+                    for j in self.objectCoords:
+                        self.checkCollision(j[0], BLOCK_SIZE)
+
+                    if not self.rightCollision and (self.drop or self.jump or self.downCollision):
+                        self.x += 1
+
+
+        if key[pygame.K_a] and not self.leftCollision and self.x > 0:
+            for i in range(self.x_vel):
+                for j in self.objectCoords:
+                    self.checkCollision(j[0], BLOCK_SIZE)
+                if not self.leftCollision and (self.drop or self.jump or self.downCollision):
+                    self.x -= 1
+
+
+    def drawCrossHair(self, screen):
+        pygame.draw.line(screen, (150, 150, 150), [self.pos[0] - 10, self.pos[1]], [self.pos[0] + 10, self.pos[1]],  1)
+        pygame.draw.line(screen, (150, 150, 150), [self.pos[0], self.pos[1] - 10], [self.pos[0], self.pos[1] + 10],  1)
+        pygame.mouse.set_visible(False)
+
+    def manageJump(self, BLOCK_SIZE):
+        # Check if character is jumping and handle jump
+        if self.jump:
+            for _ in range(self.jumpSize):
+                for j in self.objectCoords:
+                    l, r, u, d = self.checkCollision(j[0], BLOCK_SIZE)
+                    if u and j[1] == 3: #Check collision by block type
+                        self.damage = True
+
+                if not self.upCollision:
+                    self.y -= 1
                 else:
-                    if damage:
-                        main_char.health -= 1
-                        damage = not damage
-                    jumpLoop = 0
-                    jump = False
-                    drop = True
+                    if self.damage:
+                        self.health -= 1
+                        self.damage = not self.damage
+                    self.jumpLoop = 0
+                    self.jump = False
+                    self.drop = True
                     break
 
-            if jumpLoop > 0:
-                jumpLoop -= 1
+            if self.jumpLoop > 0:
+                self.jumpLoop -= 1
 
-            if jumpLoop <= 0:
-                jump = False
-                drop = True
-                jumpLoop = numJumps
+            if self.jumpLoop <= 0:
+                self.jump = False
+                self.drop = True
+                self.jumpLoop = self.numJumps
 
         # If not jumping and no downwards collision, then drop
         else:
-            drop = True
-            for i in range(main_char.y_vel):
-                for j in objectCoords:
-                    main_char.checkCollision(j[0], BLOCK_SIZE)
-                if not main_char.downCollision:
-                    main_char.y += 1
+            self.drop = True
+            for i in range(self.y_vel):
+                for j in self.objectCoords:
+                    self.checkCollision(j[0], BLOCK_SIZE)
+                if not self.downCollision:
+                    self.y += 1
                 else:
-                    jump = False
-                    drop = False
+                    self.jump = False
+                    self.drop = False
 
 
 class projectile:
-    def __init__(self, x, y, dir_x, dir_y, shootVel = 6, type = "ball", radius = 4, length = 10):
+    def __init__(self, x, y, dir_x, dir_y, shootVel = 12, type = "ball", radius = 4, length = 10):
         self.x = x
         self.y = y
         self.dir_x = dir_x
