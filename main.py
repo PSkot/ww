@@ -2,9 +2,12 @@ import pygame
 import time
 import random
 import csv
+import os
 from engine import *
+os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (100,30)
 
 scale = 2
+
 
 FPS = 50
 SCREEN_SIZE = 500*scale
@@ -18,6 +21,7 @@ spikes1 = pygame.image.load('./images/spikes1.png')
 mage1 = pygame.image.load('./images/mage1.png')
 staff1_nofire = pygame.image.load('./images/staff1_nofire.png')
 staff1_fire = pygame.image.load('./images/staff1_fire.png')
+enemy1 = pygame.image.load('./images/enemy1.png')
 
 ABILITIES = {
 1: (255, 0, 0),
@@ -38,6 +42,7 @@ spikes1 = pygame.transform.scale(spikes1, (BLOCK_SIZE, BLOCK_SIZE))
 mage1 = pygame.transform.scale(mage1, (38, 70))
 staff1_nofire = pygame.transform.scale(staff1_nofire, (16, 48))
 staff1_fire = pygame.transform.scale(staff1_fire, (16, 48))
+enemy1 = pygame.transform.scale(enemy1, (15*scale, 15*scale))
 
 BLOCK_TYPES = {
 1: grass1,
@@ -68,10 +73,7 @@ MAPS = {
 2: read_map('map2.txt'),
 }
 
-ENEMIES = {
-1: entity(100, SCREEN_SIZE - BLOCK_SIZE*3 - 35,
-    25, 35, 5, 8, 10, 10)
-}
+
 
 level = 1
 
@@ -98,6 +100,10 @@ def game(map, level, final_level = False):
     playerHeight = 35*scale
     playerWidth = 19*scale
     collisionLag = 0
+    ENEMIES = {
+    1: entity(100, SCREEN_SIZE - BLOCK_SIZE*2 - 15*scale,
+        15*scale, 15*scale, 5, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy')
+    }
     main_char = entity(
                     0, SCREEN_SIZE - BLOCK_SIZE*3 - playerHeight,
                     playerWidth, playerHeight, 5*scale, 8*scale, 10, 10, objectCoords,
@@ -137,14 +143,14 @@ def game(map, level, final_level = False):
         if collisionLag > 0:
             collisionLag -= 1
 
+        main_char.update(mousePos, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion, final_level)
 
         #Draw enemies
         for id, enemy in ENEMIES.items():
             pass
-            #enemy.drawHitBoxes(screen)
-            #enemy.drawHealth(screen)
+            enemy.drawEntity(screen)
+            enemy.drawHealth(screen)
 
-        main_char.update(mousePos, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion, final_level)
 
         pygame.display.update()
 
