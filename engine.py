@@ -15,6 +15,7 @@ class entity:
         self.x_vel = x_vel
         self.y_vel = y_vel
         self.pos = pos
+        self.type = type
         self.health = health
         self.maxHealth = maxHealth
         self.shots = shots
@@ -31,6 +32,18 @@ class entity:
         self.img = img
         self.weaponImg = weaponImg
         self.weaponImgFire = weaponImgFire
+
+        if self.img is not None:
+            self.img.set_colorkey((0, 0, 0))
+            self.img_flipped = pygame.transform.flip(self.img, True, False)
+            self.img_flipped.set_colorkey((0, 0, 0))
+
+        if self.weaponImgFire is not None:
+            self.weaponImgFire.set_colorkey((0, 0, 0))
+
+        if self.weaponImg is not None:
+            self.weaponImg.set_colorkey((0, 0, 0))
+
 
         self.rect = pygame.Rect(self.x, self.y, self.w, self.h)
 
@@ -75,7 +88,7 @@ class entity:
 
         if self.weaponImg is not None:
             if self.shootLoop > 0 and self.weaponImgFire is not None:
-                self.weaponImgFire.set_colorkey((0, 0, 0))
+
                 win.blit(self.weaponImgFire, (self.shotLoc[0]-8, self.shotLoc[1]-24))
 
             else:
@@ -97,13 +110,15 @@ class entity:
 
     def drawEntity(self, win):
         if self.img is not None:
-            self.img_flipped = pygame.transform.flip(self.img, True, False)
+            if self.type == 'player':
+                if self.pos[0] > self.x + self.w//2:
+                    win.blit(self.img, (self.x, self.y))
 
-        if self.pos[0] > self.x + self.w//2:
-            win.blit(self.img, (self.x, self.y))
+                else:
+                    win.blit(self.img_flipped, (self.x, self.y))
 
-        else:
-            win.blit(self.img_flipped, (self.x, self.y))
+            else:
+                win.blit(self.img, (self.x, self.y))
 
     def checkCollision(self, objectCoords, blockSize):
 
