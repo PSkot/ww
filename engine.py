@@ -28,8 +28,10 @@ class entity:
         self.numJumps = numJumps
         self.jumpSize = jumpSize
         self.jumpLoop = 0
+        self.jumpDelay = 0
         self.objectCoords = objectCoords
         self.img = img
+        self.dir = 1
         self.weaponImg = weaponImg
         self.weaponImgFire = weaponImgFire
 
@@ -59,15 +61,23 @@ class entity:
         self.rightCollision = False
         self.leftCollision = False
 
-        self.move(blockSize, screenSize, final_level)
-        self.manageJump(blockSize)
-        self.drawEntity(win)
-        #self.drawHitBoxes(win)
-        self.drawHealth(win)
-        #self.drawWeaponBox(win)
-        self.drawWeaponLocation(win, mouseClicked, True)
-        self.drawCrossHair(win)
-        self.updateShots(win, mouseClicked, blockSize, screenSize, explosion)
+
+        if self.type == 'player':
+            self.move(blockSize, screenSize, final_level)
+            self.manageJump(blockSize)
+            self.drawEntity(win)
+            #self.drawHitBoxes(win)
+            self.drawHealth(win)
+            #self.drawWeaponBox(win)
+            self.drawWeaponLocation(win, mouseClicked, True)
+            self.drawCrossHair(win)
+            self.updateShots(win, mouseClicked, blockSize, screenSize, explosion)
+
+        if self.type == 'enemy':
+            self.move(blockSize, screenSize, final_level)
+            self.manageJump(blockSize)
+            self.drawEntity(win)
+            self.drawHealth(win)
 
 
     def drawHitBoxes(self, win):
@@ -227,33 +237,61 @@ class entity:
             self.shootLoop -= 1
 
     def move(self, BLOCK_SIZE, SCREEN_SIZE, final_level):
-        key = pygame.key.get_pressed()
+        if self.type == 'player':
+            key = pygame.key.get_pressed()
 
-        for j in self.objectCoords:
-            self.checkCollision(j[0], BLOCK_SIZE)
+            for j in self.objectCoords:
+                self.checkCollision(j[0], BLOCK_SIZE)
 
-        if key[pygame.K_SPACE] and self.downCollision:
-            self.jump = True
+            if key[pygame.K_SPACE] and self.downCollision:
+                self.jump = True
 
-        if key[pygame.K_d] and not self.rightCollision:
-            if final_level and self.x + self.w >= SCREEN_SIZE:
-                pass
-            else:
+            if key[pygame.K_d] and not self.rightCollision:
+                if final_level and self.x + self.w >= SCREEN_SIZE:
+                    pass
+                else:
+                    for i in range(self.x_vel):
+                        for j in self.objectCoords:
+                            self.checkCollision(j[0], BLOCK_SIZE)
+
+                        if not self.rightCollision and (self.drop or self.jump or self.downCollision):
+                            self.x += 1
+
+
+            if key[pygame.K_a] and not self.leftCollision and self.x > 0:
                 for i in range(self.x_vel):
                     for j in self.objectCoords:
                         self.checkCollision(j[0], BLOCK_SIZE)
+                    if not self.leftCollision and (self.drop or self.jump or self.downCollision):
+                        self.x -= 1
 
-                    if not self.rightCollision and (self.drop or self.jump or self.downCollision):
-                        self.x += 1
+        elif self.type == 'enemy':
+            for j in self.objectCoords:
+                self.checkCollision(j[0], BLOCK_SIZE)
 
+            if self.downCollision:
+                if self.jumpDelay == 0:
+                    self.dir = random.choice([-1, 1])
+                    self.jump = True
+                    self.jumpDelay = 100
 
-        if key[pygame.K_a] and not self.leftCollision and self.x > 0:
-            for i in range(self.x_vel):
-                for j in self.objectCoords:
-                    self.checkCollision(j[0], BLOCK_SIZE)
-                if not self.leftCollision and (self.drop or self.jump or self.downCollision):
-                    self.x -= 1
+            if self.jump:
+                if not self.rightCollision and self.x + self.w < SCREEN_SIZE and self.dir > 0:
+                    for i in range(self.x_vel):
+                        for j in self.objectCoords:
+                            self.checkCollision(j[0], BLOCK_SIZE)
+                        if not self.rightCollision and (self.drop or self.jump or self.downCollision):
+                            self.x += 1
 
+                if not self.leftCollision and self.x > 0 and self.dir < 0:
+                    for i in range(self.x_vel):
+                        for j in self.objectCoords:
+                            self.checkCollision(j[0], BLOCK_SIZE)
+                        if not self.leftCollision and (self.drop or self.jump or self.downCollision):
+                            self.x -= 1
+
+            if self.jumpDelay > 0:
+                self.jumpDelay -= 1
 
     def drawCrossHair(self, screen):
         pygame.draw.line(screen, (150, 150, 150), [self.pos[0] - 10, self.pos[1]], [self.pos[0] + 10, self.pos[1]],  1)

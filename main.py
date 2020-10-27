@@ -102,7 +102,8 @@ def game(map, level, final_level = False):
     collisionLag = 0
     ENEMIES = {
     1: entity(100, SCREEN_SIZE - BLOCK_SIZE*2 - 15*scale,
-        15*scale, 15*scale, 5, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy')
+        15*scale, 15*scale, 5, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy',
+        jumpSize = 20)
     }
     main_char = entity(
                     0, SCREEN_SIZE - BLOCK_SIZE*3 - playerHeight,
@@ -147,9 +148,7 @@ def game(map, level, final_level = False):
 
         #Draw enemies
         for id, enemy in ENEMIES.items():
-            pass
-            enemy.drawEntity(screen)
-            enemy.drawHealth(screen)
+            enemy.update(mousePos, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion, final_level)
 
 
         pygame.display.update()
