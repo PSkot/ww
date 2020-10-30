@@ -8,12 +8,10 @@ os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (100,30)
 
 scale = 2
 
-
 FPS = 50
 SCREEN_SIZE = 500*scale
 PLAYER_HEIGHT = 20*scale
 PLAYER_WIDTH = 10*scale
-
 
 grass1 = pygame.image.load('./images/grass1.png')
 dirt1 = pygame.image.load('./images/dirt1.png')
@@ -22,13 +20,6 @@ mage1 = pygame.image.load('./images/mage1.png')
 staff1_nofire = pygame.image.load('./images/staff1_nofire.png')
 staff1_fire = pygame.image.load('./images/staff1_fire.png')
 enemy1 = pygame.image.load('./images/enemy1.png')
-
-ABILITIES = {
-1: (255, 0, 0),
-2: (0, 255, 0),
-3: (255, 0, 255),
-}
-
 
 NAME = "Waldo's World"
 
@@ -39,34 +30,15 @@ BLOCK_SIZE = SCREEN_SIZE//MAP_SIZE
 grass1 = pygame.transform.scale(grass1, (BLOCK_SIZE, BLOCK_SIZE))
 dirt1 = pygame.transform.scale(dirt1, (BLOCK_SIZE, BLOCK_SIZE))
 spikes1 = pygame.transform.scale(spikes1, (BLOCK_SIZE, BLOCK_SIZE))
-mage1 = pygame.transform.scale(mage1, (38, 70))
-staff1_nofire = pygame.transform.scale(staff1_nofire, (16, 48))
-staff1_fire = pygame.transform.scale(staff1_fire, (16, 48))
-enemy1 = pygame.transform.scale(enemy1, (15*scale, 15*scale))
+staff1_nofire = pygame.transform.scale(staff1_nofire, (8*scale, 24*scale))
+staff1_fire = pygame.transform.scale(staff1_fire, (8*scale, 24*scale))
 
 BLOCK_TYPES = {
 1: grass1,
 2: dirt1,
 3: spikes1,
-4: (),
 }
 
-
-def read_map(file):
-    map = []
-    with open(file) as f:
-        lines = f.readlines()
-    for line in lines:
-        map.append([int(i) for i in line.strip().split("  ")])
-    return map
-
-def read_enemies(file):
-    enemies = []
-    with open(file, 'r') as f:
-        reader = csv.reader(f, delimiter = ',')
-        for row in reader:
-            enemies.append(row)
-    return enemies
 
 MAPS = {
 1: read_map('map1.txt'),
@@ -100,23 +72,31 @@ def game(map, level, final_level = False):
     playerHeight = 35*scale
     playerWidth = 19*scale
     collisionLag = 0
-    ENEMIES = {
+    ENEMIES = [
+    {
     1: greenEnemy(100, SCREEN_SIZE - BLOCK_SIZE*2 - 15*scale,
         15*scale, 15*scale, 4, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy',
-        jumpSize = 10)
+        jumpSize = 10),
+    2: greenEnemy(600, 400, 15*scale, 15*scale, 4, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy',
+    jumpSize = 10),
+    3: greenEnemy(300, 800, 15*scale, 15*scale, 4, 8, 10, 10, objectCoords, img = enemy1, type = 'enemy',
+    jumpSize = 10),
+    },
+    {
+    1: greenEnemy(700, 500, 15*10, 15*10, 4*3, 8*5, 50, 50, objectCoords, img = enemy1, type = 'enemy',
+    jumpSize = 50)
     }
+    ]
     main_char = entity(
                     0, SCREEN_SIZE - BLOCK_SIZE*3 - playerHeight,
                     playerWidth, playerHeight, 5*scale, 8*scale, 10, 10, objectCoords,
                     jumpSize = jumpSize, img = mage1, weaponImg = staff1_nofire,
                     weaponImgFire = staff1_fire)
-    explosion = True
+    explosion = False
 
     while run:
         mousePos = pygame.mouse.get_pos()
         mouseClicked = False
-
-
 
         clock.tick(FPS)
 
@@ -135,26 +115,24 @@ def game(map, level, final_level = False):
                     x, y = (j*BLOCK_SIZE, i*BLOCK_SIZE)
                     screen.blit(BLOCK_TYPES[map[i][j]], (x,y))
 
+        #Get enemy masks
+        e_masks = []
+        e_coords = []
+
+        for id, enemy in ENEMIES[level-1].items():
+            e_masks.append(pygame.mask.from_surface(enemy.img))
+            e_coords.append((enemy.x, enemy.y))
+
         #Update main character
+        main_char.update(mousePos, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion, e_masks, e_coords, final_level)
 
-        if main_char.enemyCollision(ENEMIES) and collisionLag == 0:
-            main_char.health -= 1
-            collisionLag = 11
-
-        if collisionLag > 0:
-            collisionLag -= 1
-
-        main_char.update(mousePos, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion, final_level)
-
-        #Draw enemies
-        for id, enemy in ENEMIES.items():
+        #Update enemies
+        for id, enemy in ENEMIES[level-1].items():
             enemy.update(screen, BLOCK_SIZE, SCREEN_SIZE)
-
 
         pygame.display.update()
 
         #Level change if not on final level
-
         if main_char.health == 0:
             game(MAPS[level], level)
             quit()
@@ -163,7 +141,6 @@ def game(map, level, final_level = False):
             level += 1
             game(MAPS[level], level, True)
             quit()
-
 
 
 if __name__ == '__main__':

@@ -35,6 +35,10 @@ class entity:
         self.dir = 1
         self.weaponImg = weaponImg
         self.weaponImgFire = weaponImgFire
+        self.lag = 10
+        self.hangTime = self.jumpSize*2
+
+        self.img = pygame.transform.scale(self.img, (self.w, self.h))
 
         if self.img is not None:
             self.img.set_colorkey((0, 0, 0))
@@ -56,25 +60,33 @@ class entity:
             self.dir = [dist[0] / norm, dist[1] / norm]
             self.shotLoc = [int(self.dir[0]*self.w//2 + self.x + self.w//2), int(self.dir[1]*self.w//2 + self.y + self.h//2)]
 
-    def update(self, pos, win, mouseClicked, blockSize, screenSize, explosion, final_level):
+    def update(self, pos, win, mouseClicked, blockSize, screenSize, explosion, e_masks, e_coords, final_level):
         self.pos = pos
         self.upCollision = False
         self.downCollision = False
         self.rightCollision = False
         self.leftCollision = False
 
+        mask1 = pygame.mask.from_surface(self.img)
 
         self.move(blockSize, screenSize, final_level)
         self.manageJump(blockSize)
         self.drawEntity(win)
-        #self.drawHitBoxes(win)
         self.drawHealth(win)
-        #self.drawWeaponBox(win)
-        self.drawWeaponLocation(win, mouseClicked, True)
+        self.drawWeapon(win, mouseClicked, True)
         self.drawCrossHair(win)
         self.updateShots(win, mouseClicked, blockSize, screenSize, explosion)
 
+        for i, e_mask in enumerate(e_masks):
+            ec = e_coords[i]
+            offset = (ec[0] - self.x, ec[1] - self.y)
+            if mask1.overlap_area(e_mask, offset):
+                if self.lag == 0:
+                    self.health -= 1
+                    self.lag = 10
 
+        if self.lag > 0:
+            self.lag -= 1
 
 
     def drawHitBoxes(self, win):
@@ -84,7 +96,7 @@ class entity:
     def drawWeaponBox(self, win):
         pygame.draw.circle(win, (0, 0, 255), (self.x + self.w//2, self.y + self.h//2), self.w//2, 1)
 
-    def drawWeaponLocation(self, win, mouseClicked, show = False):
+    def drawWeapon(self, win, mouseClicked, show = False):
         weaponTimer = 0
         dist = [self.pos[0] - self.x - self.w // 2, self.pos[1] - self.y - self.h//2]
         norm = math.sqrt(dist[0] ** 2.0 + dist[1] ** 2.0)
@@ -307,7 +319,6 @@ class entity:
                     self.jump = False
                     self.drop = False
 
-
 class projectile:
     def __init__(self, x, y, dir_x, dir_y, shootVel = 12, type = "ball", radius = 4, length = 10):
         self.x = x
@@ -384,17 +395,20 @@ class greenEnemy(entity):
         for j in self.objectCoords:
             self.checkCollision(j[0], BLOCK_SIZE)
 
+
+
         if self.downCollision:
             if self.jumpDelay == 0:
                 self.dir = random.choice([-1, 1])
                 self.jump = True
                 self.jumpDelay = 75
+                self.sideWays = True
+                self.hangTime = 0
 
         if self.jumpDelay > 0:
             self.jumpDelay -= 1
 
-        if self.jump or self.drop:
-            print(self.x, self.w, SCREEN_SIZE, self.dir, self.rightCollision)
+        if (self.jump or self.drop) and self.hangTime < self.jumpSize*2:
             if not self.rightCollision and self.x + self.w < SCREEN_SIZE and self.dir > 0:
                 for i in range(self.x_vel):
                     for j in self.objectCoords:
@@ -410,6 +424,24 @@ class greenEnemy(entity):
                         self.x -= 1
 
         self.manageJump(BLOCK_SIZE)
+        self.hangTime += 1
+
+
+def read_map(file):
+    map = []
+    with open(file) as f:
+        lines = f.readlines()
+    for line in lines:
+        map.append([int(i) for i in line.strip().split("  ")])
+    return map
+
+def read_enemies(file):
+    enemies = []
+    with open(file, 'r') as f:
+        reader = csv.reader(f, delimiter = ',')
+        for row in reader:
+            enemies.append(row)
+    return enemies
 
 if __name__ == '__main__':
     pass
