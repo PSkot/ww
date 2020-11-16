@@ -12,7 +12,7 @@ class obstacle:
 
 class entity:
     def __init__(self, rect, x_vel, y_vel, health, maxHealth,
-    tiles = None, numJumps = 6, jumpSize = 50,
+    tiles = None, numJumps = 12, jumpSize = 25,
     pos = (0,0), img = None, weaponImg = None, weaponImgFire = None,
     shotImg = None):
         self.rect = rect
@@ -33,8 +33,9 @@ class entity:
 
         #Variable initialization
         self.movement = 0
-        self.jump = True
-        self.damge = False
+        self.jump = False
+        self.drop = True
+        self.damage = False
         self.jumpLoop = 0
         self.shootLoop = 0
         self.shootSpeed = 20
@@ -136,7 +137,6 @@ class entity:
             else:
                 win.blit(self.img_flipped, (self.rect.x, self.rect.y))
 
-
     def checkCollision(self, tiles):
         for t in tiles:
             if self.rect.colliderect(t['rect']):
@@ -160,7 +160,7 @@ class entity:
         for id, enemy in enemies.items():
             return self.rect.colliderect(enemy.rect)
 
-    def projetileCollision(self, projectiles):
+    def projectileCollision(self, projectiles):
         pass
 
     def updateShots(self, screen, mouseClicked, BLOCK_SIZE, SCREEN_SIZE, explosion):
@@ -261,16 +261,27 @@ class entity:
 
         self.movement = 0
 
-        self.rect.y += self.y_vel
+        if self.drop:
+            self.rect.y += self.y_vel
 
         #Y-collision check
         self.checkCollision(self.tiles)
 
-        if self.collisions['down']:
-            self.inair = False
+        #Handle jump and drop
 
-        if key[pygame.K_SPACE] and not self.inair:
-            pass
+        if key[pygame.K_SPACE] and self.collisions['down']:
+            self.jump = True
+            self.drop = False
+
+        if self.jump:
+            self.rect.y -= self.jumpSize
+
+        if self.numJumps == 0:
+            self.drop = True
+            self.jump = False
+            self.numJumps = 12
+
+        self.numJumps -= 1
 
 
     def drawCrossHair(self, screen):
