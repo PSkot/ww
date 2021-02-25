@@ -1,0 +1,4 @@
+ID,NAME,IMAGE,DAMAGE,DAMAGE_SIDE,CLIMBABLE,IN_FOLDER
+1,grass1,grass1.png,False,None,False,False
+2,dirt1,dirt1.png,False,None,False,False
+3,spikes1,spikes1.png,True,'Bottom',False,False
